@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Menu Sample</title>
+  <style>
+    :root {
+      --bg: #eef4fb;
+      --surface: #ffffff;
+      --text: #122033;
+      --muted: #52667d;
+      --line: #dfe7f2;
+      --accent: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(160deg, #edf5ff, #ebf3ff 40%, #dfeefc);
+      color: var(--text);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .menu-button {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 32px auto;
+      padding: 0 20px 40px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 14px 28px rgba(15,23,42,0.06);
+    }
+
+    .menu-panel {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      width: 260px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 20px 44px rgba(15,23,42,.12);
+      padding: 18px;
+      transform: translateX(0);
+    }
+
+    .menu-panel h3 {
+      margin: 0 0 12px;
+      font-size: 1.2rem;
+    }
+
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-top: 10px;
+      background: #f7faff;
+      font-weight: 600;
+    }
+
+    .content {
+      margin-left: 300px;
+      padding-top: 20px;
+    }
+
+    @media (max-width: 760px) {
+      .menu-panel {
+        position: static;
+        width: 100%;
+        margin: 18px 0 12px;
+      }
+      .content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div><strong>Skyline Weather</strong></div>
+    <button class="menu-button" type="button">Menu</button>
+  </header>
+
+  <div class="wrap">
+    <aside class="menu-panel" aria-label="Menu panel">
+      <h3>Menu</h3>
+      <div class="menu-item"><span>Overview</span><span>›</span></div>
+      <div class="menu-item"><span>Hourly</span><span>›</span></div>
+      <div class="menu-item"><span>7-Day Forecast</span><span>›</span></div>
+      <div class="menu-item"><span>My Location</span><span>›</span></div>
+    </aside>
+
+    <div class="content">
+      <div class="card">
+        <h2>Sample Menu Layout</h2>
+        <p>This is a quick example of a Menu toggle panel sitting on the left side of the page.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
