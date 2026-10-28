@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skyline Weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#e5efee; --surface:#f7fbfa; --surface-strong:#eaf3f1; --text:#213b3b; --muted:#607b7a; --line:#d0e0de;
+  --accent:#4f8582; --accent-strong:#6b91a0; --bar:#c8ddda; --chip:rgba(33,69,69,.07);
+  --shadow:rgba(29,65,66,.11); --shadow-deep:rgba(22,51,54,.24);
+  --glass:rgba(247,251,250,.84); --glass-border:rgba(64,105,103,.15); --scrim:rgba(19,43,48,.54);
+  --map-ground:#d3e4e0; --hero-panel:rgba(235,249,247,.16); --hero-tile:rgba(19,48,50,.2);
+  --hero-muted:rgba(247,255,253,.86); --sun-core:#d4e7d4; --sun-halo:rgba(212,231,212,.32);
+  --font-display:"VT323",monospace;
+  --font-body:"Figtree",system-ui,sans-serif;
+  --sunny-a:#4f8a63; --sunny-b:#a8c987;
+  --cloudy-a:#586d61; --cloudy-b:#b5c3a9;
+  --rain-a:#254d46; --rain-b:#6e9881;
+  --night-a:#172c27; --night-b:#465f4b;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0e1b20; --surface:#17292d; --surface-strong:#20373a; --text:#e7f2ef; --muted:#a3bcba; --line:#30484a; --bar:#294448;
+  --accent:#86b9b1; --accent-strong:#8eafc0; --chip:rgba(174,213,207,.1); --shadow:rgba(1,13,19,.48); --shadow-deep:rgba(0,8,12,.68);
+  --glass:rgba(23,41,45,.86); --glass-border:rgba(174,213,207,.16); --scrim:rgba(4,17,22,.74);
+  --map-ground:#20383c; --hero-panel:rgba(224,246,241,.12); --hero-tile:rgba(5,22,27,.28);
+  --hero-muted:rgba(239,250,248,.86); --sun-core:#c2dace; --sun-halo:rgba(194,218,206,.22);
+  --sunny-a:#285b58; --sunny-b:#578b86;
+  --cloudy-a:#3d565b; --cloudy-b:#718b8d;
+  --rain-a:#153b43; --rain-b:#47757b;
+  --night-a:#0a171e; --night-b:#29464c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:radial-gradient(ellipse at 50% -8%,#f7fbf8 0%,var(--bg) 50%,#d9e7e5 100%);color:var(--text);font:400 16px/1.5 var(--font-body);min-height:100vh}
+:root[data-theme="dark"] body{background:radial-gradient(ellipse at 50% -8%,#23393d 0%,var(--bg) 48%,#091317 100%)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px 48px}
+
+/* Top bar */
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;flex-wrap:wrap;margin:22px 0 20px;background:var(--glass);backdrop-filter:blur(8px);border:1px solid var(--glass-border);border-radius:22px;box-shadow:0 12px 30px var(--shadow)}
+.brand{font:800 1.3rem var(--font-display)}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools input{font:inherit;padding:10px 16px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--text);min-width:220px;box-shadow:inset 0 1px 0 var(--glass-border)}
+.tools button{font:600 .9rem var(--font-body);padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;transition:transform .2s ease, box-shadow .2s ease;box-shadow:0 6px 16px var(--shadow)}
+.tools button:hover{transform:translateY(-1px)}
+.tools button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.map-modal{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:24px;z-index:1000}
+.map-modal.hidden{display:none}
+.map-panel{width:min(780px,96vw);background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 24px 50px var(--shadow-deep)}
+.map-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+.map-header h3{margin:0;font:800 1.2rem var(--font-display)}
+.close-map{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:8px 10px;cursor:pointer}
+.map-canvas{height:420px;width:100%;background:var(--map-ground)}
+.map-actions{display:flex;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line)}
+.map-actions button{background:var(--text);color:var(--bg);border:1px solid var(--text);padding:10px 18px;border-radius:999px;cursor:pointer;font:600 .9rem var(--font-body)}
+.leaflet-container{background:var(--map-ground)}
+
+.menu-backdrop{position:fixed;inset:0;background:var(--scrim);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:900}
+.menu-backdrop.open{opacity:1;pointer-events:auto}
+.menu-panel{position:fixed;top:18px;left:18px;width:min(420px,94vw);max-height:calc(100vh - 36px);overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 50px var(--shadow-deep);padding:18px;transform:translateX(-110%);transition:transform .2s ease;z-index:910}
+.menu-panel.open{transform:translateX(0)}
+.menu-panel h3{margin:0 0 14px;font:800 1.2rem var(--font-display)}
+.menu-list{display:grid;gap:10px}
+.menu-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-strong);color:var(--text);font-weight:600}
+.menu-action{width:100%;font:inherit;text-align:left;cursor:pointer}
+.menu-forecast-title{margin:22px 0 8px;font:700 1.8rem/1 var(--font-display)}
+.menu-daily{padding:0 10px;background:transparent;border:0;box-shadow:none}
+.menu-daily .day{grid-template-columns:52px 30px minmax(40px,1fr) 40px 40px;gap:8px;padding:12px 0}
+.menu-daily .rain{font-size:.76rem}
+.weather-map-modal{position:fixed;inset:0;z-index:1001;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--scrim)}
+.weather-map-modal.hidden{display:none}
+.weather-map-panel{width:min(1100px,96vw);height:min(760px,92vh);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 24px 60px var(--shadow-deep)}
+.weather-map-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.weather-map-header h3{margin:0;font:700 1.8rem/1 var(--font-display)}
+.weather-map-header p{margin:2px 0 0;color:var(--muted);font-size:.84rem}
+.weather-map-close{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer;font:600 .9rem var(--font-body)}
+.weather-map-frame{width:100%;height:100%;flex:1;border:0;background:var(--map-ground)}
+
+main{display:grid;gap:18px}
+
+/* Hero */
+.hero{border-radius:30px;padding:28px 28px 24px;color:#fff;position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,.9fr);align-items:end;gap:18px;background:linear-gradient(145deg,var(--sunny-a),var(--sunny-b));box-shadow:0 24px 32px var(--shadow)}
+.hero[data-sky="cloudy"]{background:linear-gradient(160deg,var(--cloudy-a),var(--cloudy-b))}
+.hero[data-sky="rain"]{background:linear-gradient(160deg,var(--rain-a),var(--rain-b))}
+.hero[data-sky="night"]{background:linear-gradient(160deg,var(--night-a),var(--night-b))}
+.hero .sun{position:absolute;right:-50px;top:-50px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--sun-core) 0 40%,var(--sun-halo) 41% 65%,transparent 66%)}
+.hero[data-sky="cloudy"] .sun,.hero[data-sky="rain"] .sun{opacity:.25}
+.hero[data-sky="night"] .sun{background:radial-gradient(circle,#dce9e3 0 38%,rgba(220,233,227,.2) 39% 62%,transparent 63%)}
+.hero > *{position:relative;z-index:1}
+.hero-copy{display:flex;flex-direction:column;justify-content:flex-start}
+.loc{font:600 1.15rem var(--font-body);opacity:.95;margin:0}
+.date{margin:0;opacity:.82;font-size:.96rem}
+.temp{font:700 clamp(5rem,12vw,9rem)/1 var(--font-display);margin:18px 0 4px}
+.cond{font:600 1.6rem var(--font-display);margin:0}
+.hilo{margin:8px 0 0;opacity:.9;font-weight:500}
+.hero-side{background:var(--hero-panel);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(4px);border-radius:22px;padding:18px 18px 16px;justify-self:end;width:min(100%,312px)}
+.eyebrow{display:block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;opacity:.8;margin-bottom:8px}
+.mini-temp{font:700 clamp(2.4rem,4vw,3.5rem)/1 var(--font-display);margin:0 0 16px}
+.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.mini-grid div{background:var(--hero-tile);padding:10px 12px;border-radius:14px}
+.mini-grid span{display:block;color:var(--hero-muted);font-size:.75rem}
+.mini-grid strong{display:block;font-size:1rem;margin-top:3px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 16px 14px;box-shadow:0 10px 18px var(--shadow)}
+.stat .k{color:var(--muted);font-size:.86rem}
+.stat .v{font:800 1.35rem var(--font-display);margin-top:4px}
+
+h2{font:800 1.35rem var(--font-display);margin:6px 0 10px}
+
+/* Hourly */
+.hourly{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:4px 18px;box-shadow:0 10px 18px var(--shadow)}
+.hourly-list{display:grid}
+.hour-row{display:grid;grid-template-columns:76px 36px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:54px;border-bottom:1px solid var(--line)}
+.hour-row:last-child{border-bottom:0}
+.hour-time{font-weight:600}
+.hour-icon{font-size:1.35rem;text-align:center}
+.hour-condition{color:var(--muted);font-size:.9rem}
+.hour-temp{font:800 1.15rem var(--font-display)}
+.hourly-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(240px,.8fr);gap:14px;align-items:start}
+.rain-outlook{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:18px 20px;box-shadow:0 10px 18px var(--shadow)}
+.rain-outlook h3{font:700 1.8rem/1 var(--font-display);margin:0 0 12px}
+.rain-status{font-weight:700;margin:0 0 14px}
+.rain-detail{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.rain-detail strong{display:block;font-size:.82rem;margin-bottom:4px}
+.rain-detail p{color:var(--muted);font-size:.88rem;margin:0;line-height:1.55}
+
+/* Daily */
+.daily{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:6px 20px;box-shadow:0 10px 18px var(--shadow)}
+.day{display:grid;grid-template-columns:70px 36px 1fr 48px 48px;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.day .n{font-weight:600}
+.day .i{font-size:1.5rem}
+.day .lo{color:var(--muted);text-align:right}
+.day .hi{font-weight:600;text-align:right}
+.track{height:8px;border-radius:99px;background:var(--bar);position:relative;overflow:hidden}
+.fill{position:absolute;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-strong))}
+.rain{display:block;color:var(--muted);font-size:.8rem;grid-column:2 / -1;margin-top:-8px}
+
+/* Alert + footer */
+.alert{background:var(--surface);border-left:5px solid var(--accent);border-radius:14px;padding:14px 18px;margin-top:2px;box-shadow:0 10px 18px var(--shadow)}
+.cyclone-alert{display:flex;align-items:flex-start;gap:12px;background:#fff0ee;border:1px solid #e8a39c;border-left:7px solid #c62828;border-radius:14px;padding:16px 18px;color:#681b1b;box-shadow:0 10px 22px rgba(112,27,27,.16)}
+.cyclone-alert[hidden]{display:none}
+.cyclone-alert-mark{font-size:1.35rem;line-height:1.2}
+.cyclone-alert-content{display:grid;gap:3px}
+.cyclone-alert-content strong{font-size:1rem}
+.cyclone-alert-content span{font-size:.9rem}
+.cyclone-alert-content a{width:fit-content;margin-top:4px;color:#8f1d1d;font-size:.86rem;font-weight:700}
+:root[data-theme="dark"] .cyclone-alert{background:#3a1718;border-color:#a74742;border-left-color:#ff6b63;color:#ffe7e4;box-shadow:0 10px 22px rgba(0,0,0,.3)}
+:root[data-theme="dark"] .cyclone-alert-content a{color:#ffaaa3}
+footer{color:var(--muted);font-size:.9rem;padding:20px 0 10px;text-align:center}
+
+@media (max-width:920px){
+  .hero{grid-template-columns:1fr}
+  .hero-side{width:100%;justify-self:stretch}
+  .hourly-layout{grid-template-columns:1fr}
+}
+
+@media (max-width:560px){
+  .wrap{padding:0 14px 28px}
+  header.top{padding:12px 14px;border-radius:18px}
+  .tools input{min-width:140px}
+  .hero{padding:20px}
+  .stats{grid-template-columns:repeat(2,minmax(120px,1fr))}
+  .day{grid-template-columns:56px 30px 1fr 40px 40px;gap:8px}
+  .hourly{padding:4px 12px}
+  .rain-outlook{padding:16px}
+  .hour-row{grid-template-columns:68px 32px minmax(0,1fr) auto;gap:8px}
+  .hour-condition{font-size:.82rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand" id="brand"></div>
+    <div class="tools">
+      <button id="menuToggle" type="button" title="Open menu">Menu</button>
+      <button id="mapPickerBtn" type="button" title="Pick a location on the map">Map</button>
+      <input id="search" type="search" placeholder="Search a city" aria-label="Search a city">
+      <button id="theme" aria-pressed="false" title="Toggle dark mode">🌙 Dark</button>
+      <button id="unit" aria-pressed="false" title="Switch temperature unit">°C</button>
+    </div>
+  </header>
+
+  <div id="menuBackdrop" class="menu-backdrop" aria-hidden="true"></div>
+  <aside id="menuPanel" class="menu-panel" aria-label="Main menu">
+    <h3>Menu</h3>
+    <div class="menu-list">
+      <div class="menu-item"><span>Overview</span><span>›</span></div>
+      <div class="menu-item"><span>Hourly</span><span>›</span></div>
+      <div class="menu-item"><span>My Location</span><span>›</span></div>
+      <button id="liveWeatherMapBtn" class="menu-item menu-action" type="button"><span>Live weather map</span><span>›</span></button>
+    </div>
+    <h4 class="menu-forecast-title">7-day forecast</h4>
+    <section class="daily menu-daily" id="daily" aria-label="7-day forecast"></section>
+  </aside>
+
+  <div id="mapModal" class="map-modal hidden" aria-hidden="true">
+    <div class="map-panel" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+      <div class="map-header">
+        <h3 id="mapTitle">Pick a location</h3>
+        <button id="closeMap" class="close-map" type="button" aria-label="Close map picker">✕</button>
+      </div>
+      <div id="map" class="map-canvas" aria-label="Map to select a weather location"></div>
+      <div class="map-actions">
+        <button id="confirmLocation" type="button">Use this location</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="weatherMapModal" class="weather-map-modal hidden" aria-hidden="true">
+    <section class="weather-map-panel" role="dialog" aria-modal="true" aria-labelledby="weatherMapTitle">
+      <header class="weather-map-header">
+        <div>
+          <h3 id="weatherMapTitle">Live weather map</h3>
+          <p>Explore cloud, rain, wind and tropical-cyclone layers where available.</p>
+        </div>
+        <button id="closeWeatherMap" class="weather-map-close" type="button" aria-label="Close live weather map">Close</button>
+      </header>
+      <iframe id="weatherMapFrame" class="weather-map-frame" title="Interactive live weather map" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </section>
+  </div>
+
+  <main>
+    <section class="hero" id="hero" aria-label="Current weather">
+      <div class="sun" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <p class="loc" id="loc"></p>
+        <p class="date" id="date"></p>
+        <div class="temp" id="temp"></div>
+        <p class="cond" id="cond"></p>
+        <p class="hilo" id="hilo"></p>
+      </div>
+
+      <aside class="hero-side" aria-label="Weather summary">
+        <span class="eyebrow">Overview</span>
+        <div class="mini-temp" id="mini-temp">--</div>
+        <div class="mini-grid">
+          <div><span>Feels</span><strong id="mini-feels">--</strong></div>
+          <div><span>Wind</span><strong id="mini-wind">--</strong></div>
+          <div><span>Rain</span><strong id="mini-rain">--</strong></div>
+          <div><span>Humidity</span><strong id="mini-humidity">--</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <div class="cyclone-alert" id="cycloneAlert" role="alert" aria-live="assertive" hidden>
+      <span class="cyclone-alert-mark" aria-hidden="true">⚠️</span>
+      <div class="cyclone-alert-content">
+        <strong>Tropical cyclone warning near your selected location</strong>
+        <span id="cycloneAlertText"></span>
+        <a id="cycloneAlertLink" href="https://www.gdacs.org/" target="_blank" rel="noopener noreferrer">View official GDACS alert</a>
+      </div>
+    </div>
+    <div class="alert" id="alert" hidden></div>
+    <section class="stats" id="stats" aria-label="Conditions"></section>
+
+    <h2>Next 10 hours</h2>
+    <div class="hourly-layout">
+      <section class="hourly" id="hourly" aria-label="Next 10 hours forecast"></section>
+      <aside class="rain-outlook" id="rainOutlook" aria-label="Rain outlook"></aside>
+    </div>
+
+  </main>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
